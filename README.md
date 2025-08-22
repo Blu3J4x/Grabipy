@@ -78,7 +78,6 @@ To run this script, you need to have **Python 3** installed. The script also req
 
   * **File Type Coverage**: While the script supports a wide range of common file types, it may not be able to parse content from all files, especially those with custom or proprietary formats.
   * **PCAP Parsing**: The PCAP file analysis is limited to extracting IOCs and reconstructing files from unencrypted HTTP traffic. It does not support HTTPS or other encrypted protocols.
-  * **False Positives**: The regex patterns used for IOC extraction, while robust, may sometimes lead to false positives (e.g., a hash-like string that is not a true hash).
   * **Memory Usage**: While the script is designed to be memory-efficient, processing extremely large files (e.g., multi-gigabyte PCAP files) may still be resource-intensive.
   * **API Dependencies & Rate Limits**:
       * Enrichment functionality is entirely dependent on the availability and accuracy of the AbuseIPDB and VirusTotal APIs. The script will skip enrichment for IOC types if the corresponding API key is not provided.
