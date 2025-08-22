@@ -14,7 +14,7 @@ This tool was designed by sheer vibe coding. I'm by no means a Python wizard; I 
 
 -----
 
-### ✨ Key Features
+### Key Features
 
   * **Wide File Support**: 📂 Processes a broad range of file types including `.txt`, `.csv`, `.xlsx`, `.docx`, `.pdf`, `.msg`, `.eml`, and `.pcap`.
   * **Automated Enrichment**: 🌐 Optionally enriches collected IOCs against threat intelligence services like AbuseIPDB and VirusTotal to provide valuable context and risk scoring.
@@ -26,7 +26,7 @@ This tool was designed by sheer vibe coding. I'm by no means a Python wizard; I 
 
 -----
 
-### 🛠️ Prerequisites
+### 🛠Prerequisites
 
 To run this script, you need to have **Python 3** installed. The script also requires several third-party libraries. It will automatically check for and prompt you to install these dependencies on the first run. The dependencies are:
 
@@ -43,7 +43,7 @@ To run this script, you need to have **Python 3** installed. The script also req
 
 -----
 
-### 🚀 Usage
+### Usage
 
 1.  **Save the Script**: Save the provided code as a Python file, for example, `grabipy.py`.
 
@@ -74,7 +74,7 @@ To run this script, you need to have **Python 3** installed. The script also req
 
 -----
 
-### ⚠️ Limitations
+### Limitations
 
   * **File Type Coverage**: While the script supports a wide range of common file types, it may not be able to parse content from all files, especially those with custom or proprietary formats.
   * **PCAP Parsing**: The PCAP file analysis is limited to extracting IOCs and reconstructing files from unencrypted HTTP traffic. It does not support HTTPS or other encrypted protocols.
