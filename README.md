@@ -1,103 +1,85 @@
------
-
-### Grabipy by Blu3J4x
-
-### Threat Intelligence & Enrichment Tool
+### 🕵️ Grabipy: Threat Intelligence & IOC Enrichment Tool
 
 This repository contains **Grabipy**, a robust and user-friendly Python script designed for cybersecurity analysts and researchers. It automates the process of extracting, parsing, and enriching Indicators of Compromise (IOCs) from a wide range of file types, providing a comprehensive and efficient way to analyze potential threats.
 
 This tool was designed by sheer vibe coding. I'm by no means a Python wizard; I just understand how to read it. Being a creative person, I was able to leverage AI to help me vibe code my way to this wonderful little tool, which I named **Grabipy**\!
 
------
+**Table of Contents**
 
-### Table of Contents
-
-1.  [How to Use](https://www.google.com/search?q=%23how-to-use)
-2.  [Features](https://www.google.com/search?q=%23features)
-3.  [Required Libraries](https://www.google.com/search?q=%23required-libraries)
-4.  [Limitations](https://www.google.com/search?q=%23limitations)
+  * [✨ Key Features](https://www.google.com/search?q=%23-key-features)
+  * [🛠️ Prerequisites](https://www.google.com/search?q=%23%EF%B8%8F-prerequisites)
+  * [🚀 Usage](https://www.google.com/search?q=%23-usage)
+  * [⚠️ Limitations](https://www.google.com/search?q=%23-limitations)
 
 -----
 
-### How to Use
+### ✨ Key Features
 
-#### 1\. Prerequisites
+  * **Wide File Support**: 📂 Processes a broad range of file types including `.txt`, `.csv`, `.xlsx`, `.docx`, `.pdf`, `.msg`, `.eml`, and `.pcap`.
+  * **Automated Enrichment**: 🌐 Optionally enriches collected IOCs against threat intelligence services like AbuseIPDB and VirusTotal to provide valuable context and risk scoring.
+  * **Advanced Parsing**: 📧 Extracts email headers, Message-IDs, and automatically reconstructs and saves files transferred over unencrypted HTTP connections from PCAP files.
+  * **Interactive Workflow**: ➡️ Features a streamlined command-line interface with an interactive menu for easy navigation.
+  * **Secure API Key Management**: 🔑 Stores API keys securely in a separate `config.ini` file, so you do not have to re-enter them on every run.
+  * **Comprehensive Output**: 📊 Generates a timestamped CSV report (`ioc_enriched_report_YYYYMMDD_HHMMSS.csv`) with all extracted IOCs, their source files, and enrichment data.
+  * **Defanging Capability**: 🛡️ Offers the option to defang the output, replacing periods with `[.]` and `http/https` with `hxxp/hxxps` to prevent accidental clicks.
 
-Make sure you have **Python 3** installed on your system. You can check by running `python3 --version` in your terminal.
+-----
 
-#### 2\. Getting Started
+### 🛠️ Prerequisites
 
-1.  **Download the script:** Get the `grabipy.py` file from this repository and save it to a local folder.
-2.  **Open your terminal** and navigate to the folder where you saved the file.
+To run this script, you need to have **Python 3** installed. The script also requires several third-party libraries. It will automatically check for and prompt you to install these dependencies on the first run. The dependencies are:
 
-#### 3\. Initial Setup
+  * `python-docx`: For parsing `.docx` files.
+  * `pdfplumber`: For extracting text from `.pdf` documents.
+  * `extract-msg`: For handling `.msg` (Outlook) files.
+  * `pandas`: Used for reading data from `.xlsx` spreadsheets.
+  * `openpyxl`: A dependency for `pandas` to read/write `.xlsx` files.
+  * `tqdm`: Provides a progress bar for a better user experience during long tasks.
+  * `tldextract`: Extracts the top-level domain from URLs and email addresses.
+  * `beautifulsoup4`: For parsing HTML content from emails.
+  * `scapy`: Used for parsing and analyzing `.pcap` network capture files.
+  * `six`, `numpy`, `python-dateutil`, `pytz`: Additional libraries required by other dependencies.
 
-The first time you run the script, it will guide you through a one-time setup process.
+-----
 
-1.  Run the script from your terminal:
+### 🚀 Usage
+
+1.  **Save the Script**: Save the provided code as a Python file, for example, `grabipy.py`.
+
+2.  **Run the Script**: Open your terminal or command prompt and run the script.
+
     ```bash
     python3 grabipy.py
     ```
-2.  The script will check for all required libraries. If any are missing, it will ask for your permission to install them automatically.
-3.  Next, you will be prompted to enter your **AbuseIPDB** and **VirusTotal** API keys. The script will securely save these keys in a new file named `config.ini` in the same directory. You will not be asked for them again unless you choose to update them from the menu.
 
-#### 4\. Running the Tool
+3.  **Main Menu**: You will be presented with the main menu.
 
-After the initial setup, you can run the tool's main functions.
-
-1.  Run the script again:
-    ```bash
-    python3 grabipy.py
     ```
-2.  You will be presented with an interactive menu.
-3.  Select option **`1`** to "Run IOC Extraction & Enrichment".
-4.  Enter the file or folder path you want to scan. You can enter `.` to scan the current directory.
-5.  Answer the prompts to choose whether to scan email attachments and whether to proceed with enrichment.
-6.  Once complete, the script will generate a comprehensive CSV report in the same folder, with a timestamped filename (e.g., `ioc_enriched_report_YYYYMMDD_HHMMSS.csv`).
+    --- Main Menu ---
+    1. Run IOC Extraction & Enrichment
+    2. Set up/update API keys
+    3. Exit
+    ```
 
-You can now open this CSV file with any spreadsheet program to analyze the extracted IOCs and their enrichment data.
+4.  **Enter API Keys (Optional but Recommended)**: Choose option `2` to set up your API keys. The script will securely save them in a `config.ini` file. These keys are necessary for the enrichment process.
 
------
+5.  **Start Extraction**: Choose option `1` and follow the prompts. The script will ask for the file or folder path and whether to scan email attachments.
 
-### Features
+6.  **Enrichment**: After extraction, the script will detect which API keys are available and will only prompt you to enrich IOC types that have a corresponding key. This prevents unnecessary prompts for services you can't use.
 
-  * **Wide File Support**: The tool is capable of processing a broad range of common file formats, including plain text (`.txt`), spreadsheets (`.csv`, `.xlsx`), documents (`.docx`, `.pdf`), email archives (`.eml`, `.msg`), and network traffic captures (`.pcap`).
-  * **Comprehensive IOC Extraction**: It automatically identifies and extracts various types of IOCs, including:
-      * **IP Addresses** (IPv4)
-      * **Hashes** (MD5, SHA1, SHA256)
-      * **Domains & URLs** (with automatic defanging to prevent accidental clicks)
-      * **Email Addresses** and associated **Message-IDs**
-  * **Advanced Parsing Capabilities**:
-      * **Email Analysis**: It can parse email bodies and headers and, optionally, analyze **email attachments** to extract hashes and other IOCs.
-      * **Network Analysis**: The tool can process `.pcap` files, extract IOCs from network traffic, and automatically reconstruct and save files transferred over unencrypted HTTP connections.
-  * **Automated Enrichment**: It provides the option to enrich collected IOCs by querying public threat intelligence services like **AbuseIPDB** for IP reputation and **VirusTotal** for hash, domain, and URL reputation. This gives you valuable context and risk scoring directly in the output.
-  * **Enhanced Usability**: The script features a streamlined, interactive command-line interface, securely stores API keys in a separate `config.ini` file, and uses memory-efficient methods to handle large files without performance degradation.
-  * **Detailed Reporting**: All findings are compiled into a single, clean, timestamped CSV report that includes the extracted IOCs, their source files, and all enrichment data for easy analysis and sharing.
+7.  **Defang Output**: You will be asked if you want to defang the output. Choosing `'y'` will make the IOCs safer to share in reports.
+
+8.  **View Report**: A CSV report with the extracted and enriched data will be generated in the same directory as the script. The file name will include a timestamp for easy tracking.
 
 -----
 
-### Required Libraries
+### ⚠️ Limitations
 
-The script automatically checks for and prompts you to install these libraries if they are missing.
-
-  * `python-docx`
-  * `pdfplumber`
-  * `extract-msg`
-  * `pandas`
-  * `openpyxl`
-  * `tqdm`
-  * `tldextract`
-  * `beautifulsoup4`
-  * `scapy`
-  * `six`
-  * `numpy`
-  * `python-dateutil`
-  * `pytz`
-
------
-
-### Limitations
-
-  * **Encrypted Traffic**: The script's PCAP parsing is limited to **unencrypted HTTP traffic on port 80** and cannot analyze encrypted HTTPS or other secure protocols.
-  * **File Format Dependence**: The script's ability to extract IOCs from a file is highly dependent on the file's internal structure and content. Some malicious documents may be designed as lures without readable text, which could cause the script to miss IOCs hidden in other components.
-  * **Third-Party Dependencies**: The script relies on a number of external Python libraries that need to be installed on the user's system to function correctly.
+  * **File Type Coverage**: While the script supports a wide range of common file types, it may not be able to parse content from all files, especially those with custom or proprietary formats.
+  * **PCAP Parsing**: The PCAP file analysis is limited to extracting IOCs and reconstructing files from unencrypted HTTP traffic. It does not support HTTPS or other encrypted protocols.
+  * **False Positives**: The regex patterns used for IOC extraction, while robust, may sometimes lead to false positives (e.g., a hash-like string that is not a true hash).
+  * **Memory Usage**: While the script is designed to be memory-efficient, processing extremely large files (e.g., multi-gigabyte PCAP files) may still be resource-intensive.
+  * **API Dependencies & Rate Limits**:
+      * Enrichment functionality is entirely dependent on the availability and accuracy of the AbuseIPDB and VirusTotal APIs. The script will skip enrichment for IOC types if the corresponding API key is not provided.
+      * **AbuseIPDB**: The free tier has a daily limit of 1,000 requests. For a large volume of IOCs, this limit can be quickly reached.
+      * **VirusTotal**: The public API has tight constraints, including a limit of 4 requests per minute and 500 requests per day. The public API is also for non-commercial use only. The script includes a built-in delay to manage these rates, but the enrichment process can be slow.
