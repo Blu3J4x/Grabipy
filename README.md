@@ -1,4 +1,5 @@
 ### 🕵️ Grabipy: Threat Intelligence & IOC Enrichment Tool
+## Created by Blu3J4x
 
 This repository contains **Grabipy**, a robust and user-friendly Python script designed for cybersecurity analysts and researchers. It automates the process of extracting, parsing, and enriching Indicators of Compromise (IOCs) from a wide range of file types, providing a comprehensive and efficient way to analyze potential threats.
 
