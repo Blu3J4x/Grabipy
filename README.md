@@ -7,10 +7,10 @@ This tool was designed by sheer vibe coding. I'm by no means a Python wizard; I 
 
 **Table of Contents**
 
-  * [✨ Key Features](https://www.google.com/search?q=%23-key-features)
-  * [🛠️ Prerequisites](https://www.google.com/search?q=%23%EF%B8%8F-prerequisites)
-  * [🚀 Usage](https://www.google.com/search?q=%23-usage)
-  * [⚠️ Limitations](https://www.google.com/search?q=%23-limitations)
+  * [✨ Key Features](https://github.com/Blu3J4x/Grabipy/tree/main?tab=readme-ov-file#-key-features)
+  * [🛠️ Prerequisites](https://github.com/Blu3J4x/Grabipy/tree/main?tab=readme-ov-file#%EF%B8%8F-prerequisites)
+  * [🚀 Usage](https://github.com/Blu3J4x/Grabipy/tree/main?tab=readme-ov-file#-usage)
+  * [⚠️ Limitations](https://github.com/Blu3J4x/Grabipy/tree/main?tab=readme-ov-file#%EF%B8%8F-limitations)
 
 -----
 
