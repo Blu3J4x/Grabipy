@@ -14,7 +14,7 @@ Features:
 - Enhanced Usability: Streamlined workflow with an interactive menu, secure API key storage
   in a separate 'config.ini' file, and efficient, memory-safe file handling.
 - Comprehensive Output: Generates a timestamped CSV report with all extracted IOCs,
-  their source files, and enrichment data.
+  and enrichment data.
 """
 
 import os, re, ipaddress, requests, csv, time, getpass, sys, subprocess, email, struct
@@ -137,11 +137,17 @@ def undefang(url: str) -> str:
     url = url.replace("2F", "/").replace("40", "@").replace("%/", "/").replace("%/%/", "//")
     return url
     
-def defang(url: str) -> str:
-    """Defangs a URL to prevent it from being clickable."""
-    url = url.replace("http://", "hxxp://").replace("https://", "hxxps://")
-    url = url.replace(".", "[.]")
-    return url
+def defang(ioc_type: str, ioc: str) -> str:
+    """Defangs an IOC to prevent it from being clickable."""
+    if ioc_type == 'IP':
+        return ioc.replace(".", "[.]")
+    elif ioc_type == 'Domain':
+        return ioc.replace(".", "[.]")
+    elif ioc_type == 'URL':
+        url = ioc.replace("http://", "hxxp://").replace("https://", "hxxps://")
+        url = url.replace(".", "[.]")
+        return url
+    return ioc
 
 def get_root_domain(url_or_email):
     url_or_email = url_or_email.strip().strip("<>").strip('"')
@@ -340,7 +346,7 @@ def read_pcap_file_and_extract_files(file_path):
                             http_stream = HTTP(data)
                             if http_stream.haslayer('HTTP Response') and hasattr(http_stream, 'Content-Type'):
                                 content_type = http_stream.Content_Type.decode('utf-8', errors='ignore')
-                                content_length = int(http_stream.Content_Length.decode('utf-8')) if hasattr(http_stream, 'Content_Length') else 0
+                                content_length = int(http_stream.Content_Length.decode('utf-8')) if hasattr(http_stream, 'Content-Length') else 0
                                 payload = data.split(b'\r\n\r\n', 1)[1]
                                 
                                 if payload and content_length > 0 and len(payload) >= content_length:
@@ -633,16 +639,28 @@ def extract_iocs(file_path, scan_attachments):
     return all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data
 
 def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key):
-    """Orchestrates the IOC enrichment process."""
-    enrich_ip_flag = input("Enrich IPs? [Y/n]: ").strip().lower() not in ('n','no')
-    enrich_hash_flag = input("Enrich Hashes? [Y/n]: ").strip().lower() not in ('n','no')
-    enrich_domain_flag = input("Enrich Domains? [Y/n]: ").strip().lower() not in ('n','no')
-    enrich_url_flag = input("Enrich URLs? [Y/n]: ").strip().lower() not in ('n','no')
+    """Orchestrates the IOC enrichment process, only asking for types with a valid key."""
     
     enricher = Enricher(abuse_key, vt_key)
     
     tqdm.write(f"\n{color.INFO}[*] Starting Enrichment of Unique IOCs...{color.END}")
     
+    if abuse_key:
+        enrich_ip_flag = input("Enrich IPs? [Y/n]: ").strip().lower() not in ('n','no')
+    else:
+        print(f"{color.WARNING}[!] Skipping IP enrichment. AbuseIPDB API key not found.{color.END}")
+        enrich_ip_flag = False
+    
+    if vt_key:
+        enrich_hash_flag = input("Enrich Hashes? [Y/n]: ").strip().lower() not in ('n','no')
+        enrich_domain_flag = input("Enrich Domains? [Y/n]: ").strip().lower() not in ('n','no')
+        enrich_url_flag = input("Enrich URLs? [Y/n]: ").strip().lower() not in ('n','no')
+    else:
+        print(f"{color.WARNING}[!] Skipping Hash, Domain, and URL enrichment. VirusTotal API key not found.{color.END}")
+        enrich_hash_flag = False
+        enrich_domain_flag = False
+        enrich_url_flag = False
+
     if enrich_ip_flag and all_ips:
         for ioc in tqdm(all_ips, desc=f"  Enriching {len(all_ips)} unique IPs", ncols=80, leave=False):
             all_ips[ioc]['enrichment'] = enricher.enrich_ip(ioc)
@@ -691,9 +709,8 @@ def main_menu():
           "- Enhanced Usability: Streamlined workflow with an interactive menu, secure API key storage\n"
           "  in a separate 'config.ini' file, and efficient, memory-safe file handling.\n"
           "- Comprehensive Output: Generates a timestamped CSV report with all extracted IOCs,\n"
-          "  their source files, and enrichment data.{color.END}\n")
+          "  and enrichment data.{color.END}\n")
     
-    abuse_key, vt_key = load_config()
     
     while True:
         print("\n--- Main Menu ---")
@@ -704,9 +721,6 @@ def main_menu():
         choice = input(f"{color.INFO}Enter your choice (1-3): {color.END}").strip()
         
         if choice == '1':
-            if not abuse_key or not vt_key:
-                print(f"{color.WARNING}[!] API keys not found. Please set them up first.{color.END}")
-                continue
             
             file_path = input("Enter the file/folder path containing IOCs (default: current folder): ").strip() or "."
             scan_attachments = input("Scan email attachments? [y/N]: ").strip().lower() in ('y','yes')
@@ -716,15 +730,21 @@ def main_menu():
             if all_ips or all_hashes or all_domains or all_urls or all_emails:
                 enrich_choice = input(f"\nExtraction complete. Would you like to proceed with enrichment? [Y/n]: ").strip().lower()
                 if enrich_choice not in ('n', 'no'):
-                    try:
-                        all_ips, all_hashes, all_domains, all_urls = enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key)
-                    except KeyboardInterrupt:
-                        tqdm.write(f"\n{color.WARNING}[!] Enrichment interrupted by user (Ctrl+C). Writing collected data to CSV...{color.END}")
+                    abuse_key, vt_key = load_config()
+                    if not abuse_key and not vt_key:
+                        print(f"{color.WARNING}[!] No API keys found. Skipping all enrichment.{color.END}")
+                    else:
+                        try:
+                            all_ips, all_hashes, all_domains, all_urls = enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key)
+                        except KeyboardInterrupt:
+                            tqdm.write(f"\n{color.WARNING}[!] Enrichment interrupted by user (Ctrl+C). Writing collected data to CSV...{color.END}")
                 else:
                     tqdm.write(f"\n{color.INFO}[*] Skipping enrichment. Writing extracted IOCs to CSV...{color.END}")
             else:
                 print(f"{color.WARNING}[!] No IOCs found. Exiting.{color.END}")
                 break
+                
+            defang_output_flag = input("\nWould you like to defang the output (IPs, Domains, and URLs)? [y/N]: ").strip().lower() in ('y','yes')
 
             # --- Stage 3: CSV Output ---
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -739,8 +759,9 @@ def main_menu():
                         writer.writerow(['IP IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Abuse Score','Risk Level','Country','ISP','Domain','Hostname(s)','Last Reported','Source File(s)','Error'])
                         for ioc, data in all_ips.items():
+                            ioc_to_write = defang('IP', ioc) if defang_output_flag else ioc
                             writer.writerow([
-                                ioc, 'IP',
+                                ioc_to_write, 'IP',
                                 data['enrichment'].get('Abuse Score', ''),
                                 data['enrichment'].get('Risk Level', ''),
                                 data['enrichment'].get('Country', ''),
@@ -779,8 +800,9 @@ def main_menu():
                         writer.writerow(['Domain IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
                         for ioc, data in all_domains.items():
+                            ioc_to_write = defang('Domain', ioc) if defang_output_flag else ioc
                             writer.writerow([
-                                ioc, 'Domain',
+                                ioc_to_write, 'Domain',
                                 data['enrichment'].get('Risk Level', ''),
                                 data['enrichment'].get('Malicious', ''),
                                 data['enrichment'].get('Harmless', ''),
@@ -796,9 +818,9 @@ def main_menu():
                         writer.writerow(['URL IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
                         for ioc, data in all_urls.items():
-                            defanged_ioc = defang(ioc)
+                            ioc_to_write = defang('URL', ioc) if defang_output_flag else ioc
                             writer.writerow([
-                                defanged_ioc, 'URL',
+                                ioc_to_write, 'URL',
                                 data['enrichment'].get('Risk Level', ''),
                                 data['enrichment'].get('Malicious', ''),
                                 data['enrichment'].get('Harmless', ''),
