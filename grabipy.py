@@ -15,6 +15,8 @@ Features:
   in a separate 'config.ini' file, and efficient, memory-safe file handling.
 - Comprehensive Output: Generates a timestamped CSV report with all extracted IOCs,
   and enrichment data.
+- Defanging Capability: Offers the option to defang the output, replacing periods with [.] 
+  and http/https with hxxp/hxxps to prevent accidental clicks.
 """
 
 import os, re, ipaddress, requests, csv, time, getpass, sys, subprocess, email, struct
@@ -709,7 +711,9 @@ def main_menu():
           "- Enhanced Usability: Streamlined workflow with an interactive menu, secure API key storage\n"
           "  in a separate 'config.ini' file, and efficient, memory-safe file handling.\n"
           "- Comprehensive Output: Generates a timestamped CSV report with all extracted IOCs,\n"
-          "  and enrichment data.{color.END}\n")
+          "  and enrichment data.\n"
+          "- Defanging Capability: Offers the option to defang the output, replacing periods with [.] and http/https\n"
+          "  with hxxp/hxxps to prevent accidental clicks. {color.END}\n")
     
     
     while True:
