@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Current Version: v1.2
+Current Version: 1.2
 Grabipy – A robust and user-friendly Python script for threat intelligence.
 
 This tool automatically scans files and folders to extract Indicators of Compromise (IOCs)
@@ -188,6 +188,56 @@ def clean_message_id(message_id):
     if message_id and message_id.startswith('<') and message_id.endswith('>'):
         return message_id[1:-1]
     return message_id
+
+# === Generic IOC check ===
+def is_generic_ioc(ioc, ioc_type):
+    """Checks if an IOC belongs to a known generic/trusted entity."""
+    
+    # Common domains for Google, Microsoft, AWS, etc.
+    GENERIC_DOMAINS = {
+        "google.com", "gmail.com", "gstatic.com", "googlevideo.com", 
+        "googleusercontent.com", "youtube.com", "windows.net", "microsoft.com", 
+        "msftncsi.com", "azure.com", "office.com", "outlook.com", "hotmail.com", 
+        "live.co.uk", "amazonaws.com", "s3.amazonaws.com", "cloudfront.net", 
+        "akamaihd.net", "apple.com", "icloud.com", "github.com", "mailchimp.com", 
+        "dropbox.com", "onedrive.live.com", "logmein.com", "facebook.com", 
+        "twitter.com", "linkedin.com"
+    }
+    
+    # Common IP ranges for Google, Microsoft, AWS, etc.
+    GENERIC_IP_RANGES = [
+        # Google
+        "8.8.8.0/24", "8.8.4.0/24", "172.217.0.0/16", "142.250.0.0/16", "216.58.192.0/19",
+        # Microsoft (Azure/Office 365)
+        "40.76.0.0/16", "52.96.0.0/11", "13.107.6.152/31", "13.107.18.152/31",
+        # Amazon AWS
+        "3.0.0.0/5", "18.200.0.0/13", "34.192.0.0/12", "52.0.0.0/8", "54.240.0.0/12",
+        "72.0.0.0/8", "76.0.0.0/8", "99.80.0.0/12", "107.20.0.0/14", "204.236.192.0/18",
+        # Cloudflare
+        "104.16.0.0/12", "172.64.0.0/13", "188.114.96.0/20",
+    ]
+
+    # Hashes are never generic, so return False
+    if ioc_type == "Hash":
+        return False
+        
+    # Check IPs against CIDR blocks
+    if ioc_type == "IP":
+        try:
+            ip_obj = ipaddress.ip_address(ioc)
+            for network in GENERIC_IP_RANGES:
+                if ip_obj in ipaddress.ip_network(network):
+                    return True
+        except ValueError:
+            pass # Invalid IP, not generic
+            
+    # Check Domains and URLs against known domains
+    if ioc_type in ["Domain", "URL"]:
+        root_domain = get_root_domain(ioc)
+        if root_domain in GENERIC_DOMAINS:
+            return True
+
+    return False
 
 # === File collector ===
 SUPPORTED_EXTENSIONS = ['.txt', '.csv', '.xlsx', '.xls', '.docx', '.pdf', '.msg', '.eml', '.pcap']
@@ -402,7 +452,7 @@ def read_pcap_file_and_extract_files(file_path):
         return [], [], [], []
 
 # === IOC Extraction ===
-def extract_iocs_from_file(file_path, scan_attachments=False):
+def extract_iocs_from_file(file_path, scan_attachments):
     ips = set()
     hashes = set()
     domains = set()
@@ -572,7 +622,12 @@ class Enricher:
             j=resp.json().get('data',{}).get('attributes',{})
             stats=j.get('last_analysis_stats',{})
             malicious_count=int(stats.get('malicious',0))
-            risk="High" if malicious_count>0 else "Low"
+            if malicious_count >= 5:
+                risk = "High"
+            elif malicious_count >= 1:
+                risk = "Suspicious"
+            else:
+                risk = "Low"
             note=", ".join(j.get('tags',[])) if 'tags' in j else ''
             return {'Risk Level':risk,'Malicious':malicious_count,
                     'Harmless':stats.get('harmless',0),'Suspicious':stats.get('suspicious',0),
@@ -608,14 +663,19 @@ def extract_iocs(file_path, scan_attachments):
     all_emails = defaultdict(lambda: {'source_files': set(), 'enrichment': {}})
     all_email_data = {}
     
+    # NEW: Dictionaries for generic IOCs
+    all_generic_ips = defaultdict(lambda: {'source_files': set(), 'enrichment': {}})
+    all_generic_domains = defaultdict(lambda: {'source_files': set(), 'enrichment': {}})
+    all_generic_urls = defaultdict(lambda: {'source_files': set(), 'enrichment': {}})
+
     try:
         all_files = get_files_from_path(file_path)
     except ValueError as e: 
         tqdm.write(f"{color.ERROR}[✗] {e}{color.END}")
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None
     if not all_files:
         tqdm.write(f"{color.WARNING}[!] No supported files found in the specified path. Exiting.{color.END}")
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None
     
     for f in tqdm(all_files, desc=f"{color.INFO}Extracting IOCs from Files{color.END}", unit="file", ncols=80, leave=False):
         file_extension = os.path.splitext(f)[1].lower()
@@ -623,13 +683,31 @@ def extract_iocs(file_path, scan_attachments):
         file_ips, file_hashes, file_domains, file_urls, file_emails_dict, file_msg_ids, extracted_pcap_files = extract_iocs_from_file(f, scan_attachments)
         
         # Merge extracted IOCs into the main dictionaries using sets for efficient deduplication
-        for ioc in file_ips: all_ips[ioc]['source_files'].add(f)
+        for ioc in file_ips:
+            if is_generic_ioc(ioc, "IP"):
+                all_generic_ips[ioc]['source_files'].add(f)
+            else:
+                all_ips[ioc]['source_files'].add(f)
+                
         for h_dict in file_hashes:
+            # Hashes are never generic, so no change needed here
             all_hashes[h_dict['hash']]['source_files'].add(h_dict['source_file'])
             all_hashes[h_dict['hash']]['hash_type'] = h_dict.get('type', 'Unknown')
-        for ioc in file_domains: all_domains[ioc]['source_files'].add(f)
-        for ioc in file_urls: all_urls[ioc]['source_files'].add(f)
+        
+        for ioc in file_domains:
+            if is_generic_ioc(ioc, "Domain"):
+                all_generic_domains[ioc]['source_files'].add(f)
+            else:
+                all_domains[ioc]['source_files'].add(f)
+                
+        for ioc in file_urls:
+            if is_generic_ioc(ioc, "URL"):
+                all_generic_urls[ioc]['source_files'].add(f)
+            else:
+                all_urls[ioc]['source_files'].add(f)
+                
         for ioc, msg_id in file_emails_dict.items():
+            # Emails are never generic, so no change needed here
             all_emails[ioc]['source_files'].add(f)
             all_email_data[ioc] = msg_id
             
@@ -639,9 +717,9 @@ def extract_iocs(file_path, scan_attachments):
             all_hashes[h_dict['hash']]['hash_type'] = h_dict.get('type', 'Unknown')
             
     print(f"\n{color.SUCCESS}[✓] Extraction complete.{color.END}")
-    return all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data
+    return all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data, all_generic_ips, all_generic_domains, all_generic_urls
 
-def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key):
+def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls, abuse_key, vt_key):
     """Orchestrates the IOC enrichment process, only asking for types with a valid key."""
     
     enricher = Enricher(abuse_key, vt_key)
@@ -663,11 +741,20 @@ def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key):
         enrich_hash_flag = False
         enrich_domain_flag = False
         enrich_url_flag = False
+        
+    enrich_generic_flag = False
+    if abuse_key or vt_key:
+        enrich_generic_flag = input("Enrich generic IOCs (e.g., from Google, AWS)? [y/N]: ").strip().lower() in ('y','yes')
 
     if enrich_ip_flag and all_ips:
         for ioc in tqdm(all_ips, desc=f"  Enriching {len(all_ips)} unique IPs", ncols=80, leave=False):
             all_ips[ioc]['enrichment'] = enricher.enrich_ip(ioc)
         print(f"{color.SUCCESS}[✓] IP enrichment complete.{color.END}")
+        
+    if enrich_generic_flag and enrich_ip_flag and all_generic_ips:
+        for ioc in tqdm(all_generic_ips, desc=f"  Enriching {len(all_generic_ips)} generic IPs", ncols=80, leave=False):
+            all_generic_ips[ioc]['enrichment'] = enricher.enrich_ip(ioc)
+        print(f"{color.SUCCESS}[✓] Generic IP enrichment complete.{color.END}")
     
     if enrich_hash_flag and all_hashes:
         for ioc in tqdm(all_hashes, desc=f"  Enriching {len(all_hashes)} unique Hashes", ncols=80, leave=False):
@@ -678,13 +765,23 @@ def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key):
         for ioc in tqdm(all_domains, desc=f"  Enriching {len(all_domains)} unique Domains", ncols=80, leave=False):
             all_domains[ioc]['enrichment'] = enricher.enrich_domain(ioc)
         print(f"{color.SUCCESS}[✓] Domain enrichment complete.{color.END}")
+        
+    if enrich_generic_flag and enrich_domain_flag and all_generic_domains:
+        for ioc in tqdm(all_generic_domains, desc=f"  Enriching {len(all_generic_domains)} generic Domains", ncols=80, leave=False):
+            all_generic_domains[ioc]['enrichment'] = enricher.enrich_domain(ioc)
+        print(f"{color.SUCCESS}[✓] Generic Domain enrichment complete.{color.END}")
     
     if enrich_url_flag and all_urls:
         for ioc in tqdm(all_urls, desc=f"  Enriching {len(all_urls)} unique URLs", ncols=80, leave=False):
             all_urls[ioc]['enrichment'] = enricher.enrich_url(ioc)
         print(f"{color.SUCCESS}[✓] URL enrichment complete.{color.END}")
         
-    return all_ips, all_hashes, all_domains, all_urls
+    if enrich_generic_flag and enrich_url_flag and all_generic_urls:
+        for ioc in tqdm(all_generic_urls, desc=f"  Enriching {len(all_generic_urls)} generic URLs", ncols=80, leave=False):
+            all_generic_urls[ioc]['enrichment'] = enricher.enrich_url(ioc)
+        print(f"{color.SUCCESS}[✓] Generic URL enrichment complete.{color.END}")
+        
+    return all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls
 
 def main_menu():
     """Main menu and script orchestration."""
@@ -730,9 +827,9 @@ def main_menu():
             file_path = input("Enter the file/folder path containing IOCs (default: current folder): ").strip() or "."
             scan_attachments = input("Scan email attachments? [y/N]: ").strip().lower() in ('y','yes')
             
-            all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data = extract_iocs(file_path, scan_attachments)
+            all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data, all_generic_ips, all_generic_domains, all_generic_urls = extract_iocs(file_path, scan_attachments)
 
-            if all_ips or all_hashes or all_domains or all_urls or all_emails:
+            if all_ips or all_hashes or all_domains or all_urls or all_emails or all_generic_ips or all_generic_domains or all_generic_urls:
                 enrich_choice = input(f"\nExtraction complete. Would you like to proceed with enrichment? [Y/n]: ").strip().lower()
                 if enrich_choice not in ('n', 'no'):
                     abuse_key, vt_key = load_config()
@@ -740,7 +837,8 @@ def main_menu():
                         print(f"{color.WARNING}[!] No API keys found. Skipping all enrichment.{color.END}")
                     else:
                         try:
-                            all_ips, all_hashes, all_domains, all_urls = enrich_iocs(all_ips, all_hashes, all_domains, all_urls, abuse_key, vt_key)
+                            all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls = enrich_iocs(
+                                all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls, abuse_key, vt_key)
                         except KeyboardInterrupt:
                             tqdm.write(f"\n{color.WARNING}[!] Enrichment interrupted by user (Ctrl+C). Writing collected data to CSV...{color.END}")
                 else:
@@ -750,7 +848,8 @@ def main_menu():
                 break
                 
             defang_output_flag = input("\nWould you like to defang the output (IPs, Domains, and URLs)? [y/N]: ").strip().lower() in ('y','yes')
-
+            segregate_generic_flag = input("Segregate generic IOCs into a separate section in the report? [Y/n]: ").strip().lower() not in ('n', 'no')
+            
             # --- Stage 3: CSV Output ---
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file=f"ioc_enriched_report_{timestamp}.csv"
@@ -759,11 +858,44 @@ def main_menu():
                 with open(output_file,'w',newline='',encoding='utf-8') as f:
                     writer = csv.writer(f)
                     
-                    if all_ips:
+                    # Sort IOCs by their risk level
+                    sorted_ips = sorted(all_ips.items(), key=lambda item: item[1]['enrichment'].get('Abuse Score', -1), reverse=True)
+                    sorted_generic_ips = sorted(all_generic_ips.items(), key=lambda item: item[1]['enrichment'].get('Abuse Score', -1), reverse=True)
+                    sorted_hashes = sorted(all_hashes.items(), key=lambda item: item[1]['enrichment'].get('Malicious', -1), reverse=True)
+                    sorted_domains = sorted(all_domains.items(), key=lambda item: item[1]['enrichment'].get('Malicious', -1), reverse=True)
+                    sorted_generic_domains = sorted(all_generic_domains.items(), key=lambda item: item[1]['enrichment'].get('Malicious', -1), reverse=True)
+                    sorted_urls = sorted(all_urls.items(), key=lambda item: item[1]['enrichment'].get('Malicious', -1), reverse=True)
+                    sorted_generic_urls = sorted(all_generic_urls.items(), key=lambda item: item[1]['enrichment'].get('Malicious', -1), reverse=True)
+
+                    # Separate hashes with detections or errors
+                    hashes_with_issues = {k: v for k, v in sorted_hashes if v['enrichment'].get('Malicious', 0) > 0 or v['enrichment'].get('Error')}
+                    hashes_no_issues = {k: v for k, v in sorted_hashes if not (v['enrichment'].get('Malicious', 0) > 0 or v['enrichment'].get('Error'))}
+                    
+                    if sorted_ips or (not segregate_generic_flag and sorted_generic_ips):
+                        combined_ips = sorted_ips + sorted_generic_ips if not segregate_generic_flag else sorted_ips
                         writer.writerow([''])
                         writer.writerow(['IP IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Abuse Score','Risk Level','Country','ISP','Domain','Hostname(s)','Last Reported','Source File(s)','Error'])
-                        for ioc, data in all_ips.items():
+                        for ioc, data in combined_ips:
+                            ioc_to_write = defang('IP', ioc) if defang_output_flag else ioc
+                            writer.writerow([
+                                ioc_to_write, 'IP',
+                                data['enrichment'].get('Abuse Score', ''),
+                                data['enrichment'].get('Risk Level', ''),
+                                data['enrichment'].get('Country', ''),
+                                data['enrichment'].get('ISP', ''),
+                                data['enrichment'].get('Domain', ''),
+                                data['enrichment'].get('Hostname(s)', ''),
+                                data['enrichment'].get('Last Reported', ''),
+                                " | ".join(sorted(list(set(data['source_files'])))),
+                                data['enrichment'].get('Error', '')
+                            ])
+                            
+                    if segregate_generic_flag and sorted_generic_ips:
+                        writer.writerow([''])
+                        writer.writerow(['Generic IP IOCs', 'Data'])
+                        writer.writerow(['IOC','Type','Abuse Score','Risk Level','Country','ISP','Domain','Hostname(s)','Last Reported','Source File(s)','Error'])
+                        for ioc, data in sorted_generic_ips:
                             ioc_to_write = defang('IP', ioc) if defang_output_flag else ioc
                             writer.writerow([
                                 ioc_to_write, 'IP',
@@ -778,11 +910,33 @@ def main_menu():
                                 data['enrichment'].get('Error', '')
                             ])
 
-                    if all_hashes:
+                    if hashes_with_issues:
                         writer.writerow([''])
-                        writer.writerow(['Hash IOCs', 'Data'])
+                        writer.writerow(['Hash IOCs with Detections or Errors', 'Data'])
                         writer.writerow(['IOC','Hash Type','Type','Detection Ratio','Harmless','Malicious','Suspicious','Undetected','Type Description','First Seen','Last Seen','Tags','Source File(s)','Error'])
-                        for ioc, data in all_hashes.items():
+                        for ioc, data in hashes_with_issues.items():
+                            writer.writerow([
+                                ioc,
+                                data.get('hash_type', ''),
+                                'Hash',
+                                data['enrichment'].get('Detection Ratio', ''),
+                                data['enrichment'].get('Harmless', ''),
+                                data['enrichment'].get('Malicious', ''),
+                                data['enrichment'].get('Suspicious', ''),
+                                data['enrichment'].get('Undetected', ''),
+                                data['enrichment'].get('Type Description', ''),
+                                data['enrichment'].get('First Seen', ''),
+                                data['enrichment'].get('Last Seen', ''),
+                                data['enrichment'].get('Tags', ''),
+                                " | ".join(sorted(list(data['source_files']))),
+                                data['enrichment'].get('Error', '')
+                            ])
+                            
+                    if hashes_no_issues:
+                        writer.writerow([''])
+                        writer.writerow(['Harmless Hash IOCs', 'Data'])
+                        writer.writerow(['IOC','Hash Type','Type','Detection Ratio','Harmless','Malicious','Suspicious','Undetected','Type Description','First Seen','Last Seen','Tags','Source File(s)','Error'])
+                        for ioc, data in hashes_no_issues.items():
                             writer.writerow([
                                 ioc,
                                 data.get('hash_type', ''),
@@ -800,11 +954,12 @@ def main_menu():
                                 data['enrichment'].get('Error', '')
                             ])
                     
-                    if all_domains:
+                    if sorted_domains or (not segregate_generic_flag and sorted_generic_domains):
+                        combined_domains = sorted_domains + sorted_generic_domains if not segregate_generic_flag else sorted_domains
                         writer.writerow([''])
                         writer.writerow(['Domain IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
-                        for ioc, data in all_domains.items():
+                        for ioc, data in combined_domains:
                             ioc_to_write = defang('Domain', ioc) if defang_output_flag else ioc
                             writer.writerow([
                                 ioc_to_write, 'Domain',
@@ -818,11 +973,30 @@ def main_menu():
                                 data['enrichment'].get('Error', '')
                             ])
 
-                    if all_urls:
+                    if segregate_generic_flag and sorted_generic_domains:
+                        writer.writerow([''])
+                        writer.writerow(['Generic Domain IOCs', 'Data'])
+                        writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
+                        for ioc, data in sorted_generic_domains:
+                            ioc_to_write = defang('Domain', ioc) if defang_output_flag else ioc
+                            writer.writerow([
+                                ioc_to_write, 'Domain',
+                                data['enrichment'].get('Risk Level', ''),
+                                data['enrichment'].get('Malicious', ''),
+                                data['enrichment'].get('Harmless', ''),
+                                data['enrichment'].get('Suspicious', ''),
+                                data['enrichment'].get('Undetected', ''),
+                                data['enrichment'].get('Notes', ''),
+                                " | ".join(sorted(list(data['source_files']))),
+                                data['enrichment'].get('Error', '')
+                            ])
+
+                    if sorted_urls or (not segregate_generic_flag and sorted_generic_urls):
+                        combined_urls = sorted_urls + sorted_generic_urls if not segregate_generic_flag else sorted_urls
                         writer.writerow([''])
                         writer.writerow(['URL IOCs', 'Data'])
                         writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
-                        for ioc, data in all_urls.items():
+                        for ioc, data in combined_urls:
                             ioc_to_write = defang('URL', ioc) if defang_output_flag else ioc
                             writer.writerow([
                                 ioc_to_write, 'URL',
@@ -836,6 +1010,24 @@ def main_menu():
                                 data['enrichment'].get('Error', '')
                             ])
                     
+                    if segregate_generic_flag and sorted_generic_urls:
+                        writer.writerow([''])
+                        writer.writerow(['Generic URL IOCs', 'Data'])
+                        writer.writerow(['IOC','Type','Risk Level','Malicious','Harmless','Suspicious','Undetected','Notes','Source File(s)','Error'])
+                        for ioc, data in sorted_generic_urls:
+                            ioc_to_write = defang('URL', ioc) if defang_output_flag else ioc
+                            writer.writerow([
+                                ioc_to_write, 'URL',
+                                data['enrichment'].get('Risk Level', ''),
+                                data['enrichment'].get('Malicious', ''),
+                                data['enrichment'].get('Harmless', ''),
+                                data['enrichment'].get('Suspicious', ''),
+                                data['enrichment'].get('Undetected', ''),
+                                data['enrichment'].get('Notes', ''),
+                                " | ".join(sorted(list(data['source_files']))),
+                                data['enrichment'].get('Error', '')
+                            ])
+
                     if all_emails:
                         writer.writerow([''])
                         writer.writerow(['Email IOCs', 'Data'])
@@ -858,6 +1050,9 @@ def main_menu():
                 if all_domains: ioc_types.extend(['Domain'] * len(all_domains))
                 if all_urls: ioc_types.extend(['URL'] * len(all_urls))
                 if all_emails: ioc_types.extend(['Email'] * len(all_emails))
+                if all_generic_ips: ioc_types.extend(['Generic IP'] * len(all_generic_ips))
+                if all_generic_domains: ioc_types.extend(['Generic Domain'] * len(all_generic_domains))
+                if all_generic_urls: ioc_types.extend(['Generic URL'] * len(all_generic_urls))
 
                 summary = Counter(ioc_types)
 
@@ -883,4 +1078,3 @@ def main_menu():
 
 if __name__=="__main__":
     main_menu()
-
