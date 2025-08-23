@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+Current Version: v1.2
 Grabipy – A robust and user-friendly Python script for threat intelligence.
 
 This tool automatically scans files and folders to extract Indicators of Compromise (IOCs)
@@ -882,3 +883,4 @@ def main_menu():
 
 if __name__=="__main__":
     main_menu()
+
