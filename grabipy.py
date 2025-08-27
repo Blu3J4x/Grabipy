@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Current Version: 1.2
+Current Version: 1.3
 Grabipy – A robust and user-friendly Python script for threat intelligence.
 
 This tool automatically scans files and folders to extract Indicators of Compromise (IOCs)
@@ -307,7 +307,7 @@ def read_file_content(file_path):
     """Generator to read file content line by line for memory efficiency."""
     try:
         if file_path.endswith(".txt") or file_path.endswith(".csv"):
-            with open(file_path, 'r', errors='ignore') as f:
+            with open(file_path, 'r', encoding='utf-16', errors='ignore') as f:
                 for line in f:
                     yield line.strip()
         elif file_path.endswith(".xlsx"):
@@ -528,17 +528,13 @@ def extract_iocs_from_file(file_path, scan_attachments):
             try: ipaddress.ip_address(item); ips.add(item); continue
             except ValueError: pass
 
-            found_md5 = RE_MD5.findall(item)
-            if found_md5:
-                hashes.update([(h, 'md5', file_path) for h in found_md5])
-            
-            found_sha1 = RE_SHA1.findall(item)
-            if found_sha1:
-                hashes.update([(h, 'sha1', file_path) for h in found_sha1])
+# --- NEW, MORE ROBUST PARSING LOGIC ---
 
-            found_sha256 = RE_SHA256.findall(item)
-            if found_sha256:
-                hashes.update([(h, 'sha256', file_path) for h in found_sha256])
+            # Find all potential IOCs on the line using broad regex searches first
+            ips.update(RE_IPV4.findall(item)) # Find all IPv4 addresses
+            hashes.update([(h, 'md5', file_path) for h in RE_MD5.findall(item)])
+            hashes.update([(h, 'sha1', file_path) for h in RE_SHA1.findall(item)])
+            hashes.update([(h, 'sha256', file_path) for h in RE_SHA256.findall(item)])
 
             for e in RE_EMAIL.findall(item):
                 ce = clean_email(e)
@@ -548,8 +544,21 @@ def extract_iocs_from_file(file_path, scan_attachments):
             for u in RE_URL.findall(item):
                 add_url_and_domain(u)
 
-            words = re.split(r'[\s,;<>]+', item)
+            # Split the line into words and check each word individually.
+            # This is great for finding domains and IPv6 addresses.
+            words = re.split(r'[\s,;<>\[\]\(\)]+', item)
             for word in words:
+                if not word:
+                    continue
+                # Check if the word is a valid IP (handles IPv6)
+                try:
+                    ipaddress.ip_address(word)
+                    ips.add(word)
+                    continue # Move to the next word
+                except ValueError:
+                    pass
+                
+                # Check if the word is a domain
                 if '.' in word and '@' not in word:
                     extracted = tldextract.extract(word)
                     if extracted.domain and extracted.suffix:
@@ -843,6 +852,9 @@ def main_menu():
         
         if choice == '1':
             
+            # Initialize all IOC containers to be empty to prevent errors
+            all_ips, all_hashes, all_domains, all_urls, all_emails, all_email_data, all_generic_ips, all_generic_domains, all_generic_urls = [], {}, {}, {}, {}, {}, [], [], []
+
             file_path = input("Enter the file/folder path containing IOCs (default: current folder): ").strip() or "."
             scan_attachments = input("Scan email attachments? [y/N]: ").strip().lower() in ('y','yes')
             
@@ -850,11 +862,28 @@ def main_menu():
 
             if all_ips or all_hashes or all_domains or all_urls or all_emails or all_generic_ips or all_generic_domains or all_generic_urls:
                 enrich_choice = input(f"\nExtraction complete. Would you like to proceed with enrichment? [Y/n]: ").strip().lower()
+                
                 if enrich_choice not in ('n', 'no'):
-                    abuse_key, vt_key = load_config()
-                    if not abuse_key and not vt_key:
-                        print(f"{color.WARNING}[!] No API keys found. Skipping all enrichment.{color.END}")
-                    else:
+                    # This new loop will check for keys and prompt the user if they are missing
+                    keys_loaded = False
+                    while True:
+                        abuse_key, vt_key = load_config()
+                        if abuse_key or vt_key:
+                            keys_loaded = True
+                            break # Exit loop if keys are found
+
+                        # If keys are not found, prompt the user
+                        print(f"{color.WARNING}[!] No API keys found.{color.END}")
+                        setup_now = input("Would you like to set up API keys now? [Y/n]: ").strip().lower()
+                        
+                        if setup_now in ('', 'y', 'yes'):
+                            setup_config() # Run the setup, then the loop will try again
+                        else:
+                            print(f"{color.INFO}[*] Skipping enrichment.{color.END}")
+                            break # Exit loop if user says no
+
+                    # After the loop, only enrich if keys were successfully loaded
+                    if keys_loaded:
                         try:
                             all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls = enrich_iocs(
                                 all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all_generic_domains, all_generic_urls, abuse_key, vt_key)
@@ -1097,5 +1126,3 @@ def main_menu():
 
 if __name__=="__main__":
     main_menu()
-
-
