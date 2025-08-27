@@ -64,11 +64,13 @@ dependencies = {
 }
 
 # Add dependencies that aren't core modules and can be checked
-extra_dependencies = ["six", "numpy", "dateutil", "pytz"]
-for mod in extra_dependencies:
-    check_install(mod)
-
-for mod, pip_name in dependencies.items():
+extra_dependencies = {
+    "six": "six",
+    "numpy": "numpy",
+    "dateutil": "python-dateutil", # Corrected name
+    "pytz": "pytz"
+}
+for mod, pip_name in extra_dependencies.items():
     check_install(mod, pip_name)
 
 # Safe imports
@@ -1078,3 +1080,4 @@ def main_menu():
 
 if __name__=="__main__":
     main_menu()
+
