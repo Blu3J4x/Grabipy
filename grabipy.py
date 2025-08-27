@@ -38,40 +38,57 @@ class color:
     END = '\033[0m'
 
 # === Dependency check ===
-def check_install(module_name, pip_name=None):
-    pip_name = pip_name or module_name
-    try: __import__(module_name)
-    except ImportError:
-        print(f"{color.WARNING}[!] Missing required module: {module_name}{color.END}")
-        choice = input(f"Do you want to try installing {pip_name} now? [Y/n]: ").strip().lower()
+def check_and_install_dependencies():
+    """Checks for all required dependencies and installs them in a single batch."""
+    
+    # A single dictionary mapping the import name to the pip install name
+    all_dependencies = {
+        "docx": "python-docx",
+        "pdfplumber": "pdfplumber",
+        "extract_msg": "extract-msg",
+        "pandas": "pandas",
+        "openpyxl": "openpyxl",
+        "tqdm": "tqdm",
+        "tldextract": "tldextract",
+        "bs4": "beautifulsoup4",
+        "scapy": "scapy",
+        "six": "six",
+        "numpy": "numpy",
+        "dateutil": "python-dateutil",
+        "pytz": "pytz"
+    }
+    
+    missing_packages = []
+    print(f"{color.INFO}[*] Checking for required modules...{color.END}")
+    for module_name, pip_name in all_dependencies.items():
+        try:
+            __import__(module_name)
+        except ImportError:
+            missing_packages.append(pip_name)
+            
+    if missing_packages:
+        print(f"\n{color.WARNING}[!] The following required modules are missing:{color.END}")
+        for pkg in missing_packages:
+            print(f"  - {pkg}")
+            
+        choice = input(f"\nDo you want to try installing them now? [Y/n]: ").strip().lower()
         if choice in ('', 'y', 'yes'):
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", pip_name])
-            print(f"{color.SUCCESS}[✓] {pip_name} installed. Please re-run the script.{color.END}\n")
+            try:
+                print(f"{color.INFO}[*] Installing {len(missing_packages)} package(s)...{color.END}")
+                # Installs all missing packages in one command
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", *missing_packages])
+                print(f"\n{color.SUCCESS}[✓] All dependencies installed. Please re-run the script to start.{color.END}")
+            except subprocess.CalledProcessError:
+                print(f"{color.ERROR}[✗] Failed to install one or more packages. Please try installing them manually.{color.END}")
+            sys.exit(1) # Exit after installation attempt so the script can be re-run cleanly
         else:
-            print(f"{color.ERROR}[✗] {module_name} is required. Exiting.{color.END}\n")
-        sys.exit(1)
+            print(f"{color.ERROR}[✗] Required modules are missing. Exiting.{color.END}")
+            sys.exit(1)
+    else:
+        print(f"{color.SUCCESS}[✓] All dependencies are satisfied.{color.END}")
 
-dependencies = {
-    "docx": "python-docx",
-    "pdfplumber": "pdfplumber",
-    "extract_msg": "extract-msg",
-    "pandas": "pandas",
-    "openpyxl": "openpyxl",
-    "tqdm": "tqdm",
-    "tldextract": "tldextract",
-    "bs4": "beautifulsoup4",
-    "scapy": "scapy"
-}
-
-# Add dependencies that aren't core modules and can be checked
-extra_dependencies = {
-    "six": "six",
-    "numpy": "numpy",
-    "dateutil": "python-dateutil", # Corrected name
-    "pytz": "pytz"
-}
-for mod, pip_name in extra_dependencies.items():
-    check_install(mod, pip_name)
+# Run the dependency check at the start of the script
+check_and_install_dependencies()
 
 # Safe imports
 from docx import Document
@@ -1080,4 +1097,5 @@ def main_menu():
 
 if __name__=="__main__":
     main_menu()
+
 
