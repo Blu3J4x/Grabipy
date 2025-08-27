@@ -28,7 +28,7 @@ This tool was designed by sheer vibe coding. I'm by no means a Python wizard; I 
 
 ### Prerequisites
 
-To run this script, you need to have **Python 3** installed. The script also requires several third-party libraries. It will automatically check for and prompt you to install these dependencies on the first run. The dependencies are:
+To run this script, you need to have **Python 3** installed. The script also requires several third-party libraries. It will automatically check for and prompt you to install these dependencies on the first run, this can take up to 10 mins. The dependencies are:
 
   * `python-docx`: For parsing `.docx` files.
   * `pdfplumber`: For extracting text from `.pdf` documents.
