@@ -681,17 +681,20 @@ class Enricher:
 
                 # --- Step 2: NEW - Detailed Report Check for High-Risk IPs ---
                 if score > 25:
-                    self._wait_for_api('AbuseIPDB') # Wait again for the second API call
-                    reports_url = 'https://api.abuseipdb.com/api/v2/reports'
-                    reports_resp = requests.get(reports_url, headers={'Accept':'application/json','Key':self.abuse_key}, params={'ipAddress':ip, 'maxAgeInDays': '90'}, timeout=30)
-                    
-                    if reports_resp.status_code == 200:
-                        reports_data = reports_resp.json()['data']['reports']
-                        # Count the categories from the reports
-                        category_counts = Counter(report['categories'] for report in reports_data)
-                        # Format the categories into a readable string
-                        categories_summary = ", ".join([f"{cat_map.get(cat[0], 'Unknown')} ({count})" for cat, count in category_counts.most_common(3)])
-                        result['Report Categories'] = categories_summary
+                        self._wait_for_api('AbuseIPDB') # Wait again for the second API call
+                        reports_url = 'https://api.abuseipdb.com/api/v2/reports'
+                        reports_resp = requests.get(reports_url, headers={'Accept':'application/json','Key':self.abuse_key}, params={'ipAddress':ip, 'maxAgeInDays': '90'}, timeout=30)
+                        
+                        if reports_resp.status_code == 200:
+                            # Use .get() method with an empty list as a default to prevent the KeyError
+                            reports_data = reports_resp.json().get('data', {}).get('reports', [])
+                            
+                            if reports_data: # Only proceed if reports were found
+                                # Count the categories from the reports
+                                category_counts = Counter(report['categories'] for report in reports_data)
+                                # Format the categories into a readable string
+                                categories_summary = ", ".join([f"{cat_map.get(cat[0], 'Unknown')} ({count})" for cat, count in category_counts.most_common(3)])
+                                result['Report Categories'] = categories_summary
 
                 self._update_cache(ip, result)
                 return result
