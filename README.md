@@ -10,15 +10,15 @@ Grabipy is a robust and user-friendly Python script for threat intelligence. It 
 
 ### ✨ Key Features
 
-* **Wide File Support**: 📂 Processes a broad range of file types including `.txt`, `.csv`, `.xlsx`, `.docx`, `.pdf`, `.msg`, `.eml`, and `.pcap`.
-* **Automated Enrichment**: 🌐 Optionally enriches collected IOCs against threat intelligence services like **AbuseIPDB** and **VirusTotal** to provide valuable context and risk scoring.
-* **Advanced Parsing**: 📧 Extracts email headers, attachments, Message-IDs, and automatically reconstructs and saves files transferred over unencrypted HTTP connections from PCAP files.
-* **Smart, Interactive Workflow**: ➡️ Features a streamlined command-line interface with an interactive menu. If API keys are missing, it will prompt you to set them up on the spot.
-* **Efficient Dependency Management**: ⚙️ On first run, the script checks for all missing libraries and installs them in a single batch for a quick setup.
-* **Fast Startup Option**: ⚡ For daily use, you can bypass the dependency check for an instant start using the `--skip-check` flag.
+* **Multi-Format Reporting**: 📊 In addition to CSV, you can now generate comprehensive reports in **JSON** for easy machine parsing and **HTML** for clean, readable presentations.
+* **Performance Caching**: ⚡ To significantly speed up re-scans and reduce API usage, IOC enrichment results are **cached locally**. Cached data is reused for 24 hours, respecting API rate limits and saving time.
+* **In-Depth IP Reputation**: 🌐 IP enrichment is now more powerful. For suspicious IPs, Grabipy automatically fetches the **top 3 reported abuse categories** from AbuseIPDB (e.g., Port Scan, Phishing), providing deeper, actionable context.
+* **Wide File Support**: 📂 Processes a broad range of file types including .txt, .csv, .xlsx, .docx, .pdf, .msg, .eml, and .pcap.
+* **Advanced Parsing**: 📧 Extracts email headers, attachments, and Message-IDs. It also automatically reconstructs and saves files transferred over unencrypted HTTP from PCAP files.
+* **Smart, Interactive Workflow**: ➡️ Features a redesigned UI with a clear, interactive menu and a **built-in user guide**. If API keys are missing, it will prompt you to set them up on the spot.
+* **Robust Error Handling**: 🛡️ Gracefully handles common **SSL errors** on corporate networks by providing a clear, one-time warning and halting further enrichment to avoid repeated failures.
 * **Secure API Key Management**: 🔑 Stores API keys securely in a separate `config.ini` file, so you do not have to re-enter them on every run.
-* **Comprehensive Output**: 📊 Generates a timestamped CSV report (`ioc_enriched_report_YYYYMMDD_HHMMSS.csv`) with all extracted IOCs, their source files, and enrichment data.
-* **Defanging Capability**: 🛡️ Offers the option to defang the output, replacing periods with `[.]` and `http/https` with `hxxp/hxxps` to prevent accidental clicks.
+* **Defanging Capability**: 🛡️ Offers the option to defang IOCs in reports, replacing periods with `[.]` and `http` with `hxxp` to prevent accidental clicks on malicious links.
 
 ---
 
