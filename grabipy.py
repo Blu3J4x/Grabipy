@@ -97,8 +97,7 @@ def check_and_install_dependencies():
     else:
         print(f"{color.SUCCESS}[✓] All dependencies are satisfied.{color.END}")
 
-# Run the dependency check at the start of the script
-check_and_install_dependencies()
+# NOTE: The dependency check is now called inside the `if __name__ == "__main__"` block
 
 # Safe imports
 from docx import Document
@@ -691,7 +690,7 @@ class Enricher:
                         # Count the categories from the reports
                         category_counts = Counter(report['categories'] for report in reports_data)
                         # Format the categories into a readable string
-                        categories_summary = ", ".join([f"{cat_map[cat[0]]} ({count})" for cat, count in category_counts.most_common(3)])
+                        categories_summary = ", ".join([f"{cat_map.get(cat[0], 'Unknown')} ({count})" for cat, count in category_counts.most_common(3)])
                         result['Report Categories'] = categories_summary
 
                 self._update_cache(ip, result)
@@ -1075,14 +1074,14 @@ def display_guide():
     print("      enrich them using your saved API keys.")
 
     print(f"\n {color.WARNING}4. The Output:{color.END}")
-    print("    - A detailed CSV report named 'ioc_enriched_report_...' will be")
-    print("      created in the script's directory. This file contains all the")
+    print("    - A detailed CSV, JSON, and/or HTML report named 'ioc_report_...' will be")
+    print("      created in the script's directory. These files contain all the")
     print("      found IOCs and their enrichment data.")
 
     print(f"\n {color.WARNING}Pro Tip: Fast Startup:{color.END}")
     print("    - After the first run, you can start the script much faster by")
     print("      running it with the '--skip-check' flag from your terminal:")
-    print(f"      {color.SUCCESS}python grabipy.py --skip-check{color.END}")
+    print(f"      {color.SUCCESS}python Grabipy_v2.py --skip-check{color.END}")
 
     print("-" * 60)
     input(f"\n{color.INFO}Press Enter to return to the main menu...{color.END}")
@@ -1290,4 +1289,11 @@ def main_menu():
             print(f"{color.ERROR}[✗] Invalid choice. Please enter 1, 2, 3, or 4.{color.END}")
 
 if __name__=="__main__":
+    # Check for the --skip-check flag before running the dependency check.
+    # sys.argv is a list of command-line arguments.
+    if '--skip-check' not in sys.argv:
+        check_and_install_dependencies()
+    else:
+        print(f"{color.INFO}[*] Skipping dependency check as requested.{color.END}")
+    
     main_menu()
