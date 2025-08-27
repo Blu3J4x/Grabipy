@@ -3,6 +3,9 @@
 
 Grabipy is a robust and user-friendly Python script for threat intelligence. It automatically scans files and folders to extract Indicators of Compromise (IOCs), including IPs, hashes (MD5, SHA1, SHA256), domains, URLs, and email addresses, and enriches them using external APIs.
 
+<img width="600" height="458" alt="image" src="https://github.com/user-attachments/assets/4e884204-100f-4ba0-b287-25f4512f5976" />
+
+
 ---
 
 ### ✨ Key Features
