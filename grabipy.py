@@ -930,7 +930,8 @@ def enrich_iocs(all_ips, all_hashes, all_domains, all_urls, all_generic_ips, all
                 
                 if domain_from_ip:
                     # If this is a new domain, add it to the list to be enriched later
-                    if domain_from_ip not in all_domains and domain_from_ip not in all_generic_domains and not enricher._get_from_cache(domain_from_ip)[0]:
+                    # --- FIX: Removed faulty cache check that prevented domains from being added to the report ---
+                    if domain_from_ip not in all_domains and domain_from_ip not in all_generic_domains:
                         newly_discovered_domains.add(domain_from_ip)
                     
                     # Map the discovered domain to its IP's country code
@@ -1609,4 +1610,3 @@ if __name__=="__main__":
         print(f"{color.INFO}[*] Skipping dependency check as requested.{color.END}")
     
     main_menu()
-
