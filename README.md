@@ -5,36 +5,82 @@ Grabipy is a robust and user-friendly Python script for threat intelligence. It 
 
 <img width="600" height="458" alt="image" src="https://github.com/user-attachments/assets/4e884204-100f-4ba0-b287-25f4512f5976" />
 
+***
+---
+## Core Functionality
+
+Grabipy is a comprehensive threat intelligence tool designed to automate the discovery and analysis of Indicators of Compromise (IOCs) from a wide array of sources.
+
+* **Multi-Source IOC Extraction** 🕵️‍♂️
+    * Scans individual files or entire folders to recursively find and parse supported documents.
+    * Extracts a wide range of IOC types: **IP addresses** (IPv4 & IPv6), **hashes** (MD5, SHA1, SHA256), **domains**, **URLs**, and **email addresses**.
+
+* **Extensive File Support** 📂
+    * Processes a broad variety of file types, including plain text (`.txt`, `.csv`), spreadsheets (`.xlsx`, `.xls`), documents (`.docx`, `.pdf`), and emails (`.msg`, `.eml`).
+    * Includes a specialized parser for network traffic captures (`.pcap`), capable of reconstructing and saving files transferred over unencrypted HTTP.
 
 ---
+## Intelligent Analysis & Enrichment
 
-### ✨ Key Features
+The script goes beyond simple extraction by adding layers of context and intelligence to the raw data.
 
-* **Multi-Format Reporting**: 📊 In addition to CSV, you can now generate comprehensive reports in **JSON** for easy machine parsing and **HTML** for clean, readable presentations.
-* **Performance Caching**: ⚡ To significantly speed up re-scans and reduce API usage, IOC enrichment results are **cached locally**. Cached data is reused for 24 hours, respecting API rate limits and saving time.
-* **In-Depth IP Reputation**: 🌐 IP enrichment is now more powerful. For suspicious IPs, Grabipy automatically fetches the **top 3 reported abuse categories** from AbuseIPDB (e.g., Port Scan, Phishing), providing deeper, actionable context.
-* **Wide File Support**: 📂 Processes a broad range of file types including .txt, .csv, .xlsx, .docx, .pdf, .msg, .eml, and .pcap.
-* **Advanced Parsing**: 📧 Extracts email headers, attachments, and Message-IDs. It also automatically reconstructs and saves files transferred over unencrypted HTTP from PCAP files.
-* **Smart, Interactive Workflow**: ➡️ Features a redesigned UI with a clear, interactive menu and a **built-in user guide**. If API keys are missing, it will prompt you to set them up on the spot.
-* **Robust Error Handling**: 🛡️ Gracefully handles common **SSL errors** on corporate networks by providing a clear, one-time warning and halting further enrichment to avoid repeated failures.
-* **Secure API Key Management**: 🔑 Stores API keys securely in a separate `config.ini` file, so you do not have to re-enter them on every run.
-* **Defanging Capability**: 🛡️ Offers the option to defang IOCs in reports, replacing periods with `[.]` and `http` with `hxxp` to prevent accidental clicks on malicious links.
+* **Automated IOC Enrichment** 🌐
+    * Integrates with **AbuseIPDB** to retrieve reputation data for IP addresses, including an abuse confidence score, risk level, country of origin, ISP, and the top reported attack categories.
+    * Uses the **VirusTotal API** to enrich hashes, domains, and URLs with malicious detection ratios and other metadata.
+
+* **Smart Caching System** ⚡
+    * Features a local caching system that saves enrichment results for 24 hours. This speeds up subsequent scans, reduces redundant API calls, and helps manage API rate limits.
+    * The cache is intelligent enough to remember `404 Not Found` results, preventing the script from wasting API quota on IOCs that are known not to be in VirusTotal's database.
+
+* **Contextual Linking & Filtering** 🔗
+    * Actively filters out "generic" IOCs from trusted providers like Google and AWS to reduce noise and help you focus on relevant threats. This categorization is done both before the scan and dynamically after enrichment for improved accuracy.
+    * Creates links between IOCs by discovering new domains from IP enrichment and porting over contextual data like the country code.
 
 ---
+## Comprehensive Reporting
 
-### 🛠️ Prerequisites
+Results are presented in clear, actionable, and user-selectable formats.
 
-To run this script, you need to have **Python 3** installed. The script also requires several third-party libraries. It will automatically check for and prompt you to install these dependencies in a single batch on the first run. (This could take 10 - 15 mins as they are extensive libraries)
+* **Multi-Format Reports** 📊
+    * Generates reports in **CSV** for spreadsheet analysis, **JSON** for easy integration with other tools, and a polished **HTML** format for presentation.
+    * The interactive HTML report features an **Executive Summary** of high-risk IOCs, collapsible sections for easy navigation, and a clean, modern design.
 
-* `python-docx`: For parsing `.docx` files.
-* `pdfplumber`: For extracting text from `.pdf` documents.
-* `extract-msg`: For handling `.msg` (Outlook) files.
-* `pandas` & `openpyxl`: For reading data from `.xlsx` spreadsheets.
-* `tqdm`: Provides progress bars for a better user experience.
-* `tldextract`: Extracts the top-level domain from URLs and email addresses.
-* `beautifulsoup4`: For parsing HTML content from emails.
-* `scapy`: Used for parsing and analyzing `.pcap` network capture files.
-* `six`, `numpy`, `python-dateutil`, `pytz`: Additional libraries required by other dependencies.
+* **Secure Output Options** 🛡️
+    * Includes a "defanging" feature that makes IOCs non-clickable in reports (e.g., `1.2.3.4` becomes `1[.]2[.]3[.]4`) to prevent accidental exposure to malicious sites.
+
+---
+## User-Focused Design
+
+Grabipy is built to be robust, user-friendly, and easy to manage.
+
+* **Interactive & Guided Workflow** ▶️
+    * Features a simple command-line menu to guide you through the process.
+    * Provides granular control over the scan, allowing you to choose whether to scan email attachments, hash source files, and select your preferred report formats.
+
+* **Automated Setup & Secure Configuration** ⚙️
+    * On its first run, the script automatically checks for all required libraries and offers to install them in a single batch.
+    * API keys are stored securely in an external `config.ini` file, so you don't have to enter them every time you run a scan.
+  
+---
+
+## 🛠️ Prerequisites
+
+To run Grabipy, you need **Python 3** installed on your system. The script is designed to be self-contained and will handle its own library dependencies. Please use an elevated command prompt
+
+On the first run, the script will automatically check for all required third-party libraries and will prompt you for permission to install them in a single batch. (This can take up to 15 mins depending on connection and library size.)
+
+The required libraries are:
+* **requests**: For making API calls to enrichment services like VirusTotal and AbuseIPDB.
+* **chardet**: For automatically detecting the character encoding of text-based files to prevent parsing errors.
+* **python-docx**: For parsing Microsoft Word `.docx` files.
+* **pdfplumber**: For extracting text from `.pdf` documents.
+* **extract-msg**: For handling Microsoft Outlook `.msg` files.
+* **pandas** & **openpyxl**: For reading data from Microsoft Excel `.xlsx` and `.xls` spreadsheets.
+* **tqdm**: Provides progress bars for a better user experience during long operations.
+* **tldextract**: For accurately extracting the root domain from URLs and email addresses.
+* **beautifulsoup4**: For parsing HTML content, primarily from emails.
+* **scapy**: Used for parsing and analyzing `.pcap` network capture files.
+* **six**, **numpy**, **python-dateutil**, **pytz**: Additional libraries required by other dependencies to function correctly.
 
 ---
 
@@ -57,7 +103,8 @@ To run this script, you need to have **Python 3** installed. The script also req
     --- Main Menu ---
     1. Run IOC Extraction & Enrichment
     2. Set up/update API keys
-    3. Exit
+    3. Guide
+    4. Exit
     ```
 
 5.  **Enter API Keys (Optional but Recommended)**: If you choose to enrich IOCs (Option 1) and your API keys are not configured, the script will prompt you to set them up immediately. You can also manually set them up by choosing Option `2`. The keys are necessary for the enrichment process and will be saved to `config.ini`.
