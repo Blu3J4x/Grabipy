@@ -1,4 +1,4 @@
-## Grabipy v1.4 Changelog
+## Grabipy v1.4 Changelog 27/08/2025
 
 Version 1.4 introduces significant enhancements focused on performance, usability, and reporting capabilities.
 
