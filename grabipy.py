@@ -6,15 +6,15 @@ Grabipy – A robust and user-friendly Python script for threat intelligence.
 This tool automatically scans files and folders to extract Indicators of Compromise (IOCs)
 including IPs, hashes (MD5, SHA1, SHA256), domains, URLs, and email addresses.
 """
+
 import json
-import os, re, ipaddress, requests, csv, time, getpass, sys, subprocess, email, struct
+import os, re, ipaddress, csv, time, getpass, sys, subprocess, email, struct
 from urllib.parse import urlparse, unquote
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 import base64
 import hashlib
 import configparser
-from requests.exceptions import RequestException
 
 # === Cache Handling ===
 CACHE_FILE = 'enrichment_cache.json'
@@ -60,6 +60,7 @@ def check_and_install_dependencies():
     # Import standard libraries needed for this function
     import sys
     import subprocess
+    import pkgutil
 
     # A single dictionary mapping the import name to the pip install name
     all_dependencies = {
@@ -77,7 +78,8 @@ def check_and_install_dependencies():
         "six": "six",
         "numpy": "numpy",
         "dateutil": "python-dateutil",
-        "pytz": "pytz"
+        "pytz": "pytz",
+        "colorama": "colorama"
     }
     
     missing_packages = []
@@ -108,21 +110,7 @@ def check_and_install_dependencies():
             sys.exit(1)
     else:
         print(f"{color.OKGREEN}[✓] All dependencies are satisfied.{color.END}")
-
 # NOTE: The dependency check is now called inside the `if __name__ == "__main__"` block
-
-# Safe imports
-from docx import Document
-import olefile
-import chardet
-import pdfplumber
-import extract_msg
-import pandas as pd
-from tqdm import tqdm
-import tldextract
-from bs4 import BeautifulSoup
-from scapy.all import rdpcap, IP, TCP, UDP, Raw, hexdump
-from scapy.layers.http import HTTP
 
 # === Config & API Keys ===
 CONFIG_FILE = 'config.ini'
@@ -1603,10 +1591,36 @@ def main_menu():
             
         else:
             print(f"{color.ERROR}[✗] Invalid choice. Please enter 1, 2, 3, or 4.{color.END}")
-if __name__=="__main__":
+# === Main execution block ===
+if __name__ == "__main__":
+    import colorama
+    colorama.init()
     if '--skip-check' not in sys.argv:
         check_and_install_dependencies()
+        
     else:
-        print(f"{color.INFO}[*] Skipping dependency check as requested.{color.END}")
+        print(f"[*] Skipping dependency check as requested.")
+
+    # === All Third-Party Imports ===
+    # THESE MUST BE PLACED HERE.
+    # This ensures all dependencies are installed *before* they are imported.
+    import requests
+    from requests.exceptions import RequestException
+    from docx import Document
+    import olefile
+    import chardet
+    import pdfplumber
+    import extract_msg
+    import pandas as pd
+    from tqdm import tqdm
+    import tldextract
+    from bs4 import BeautifulSoup
+    from scapy.all import rdpcap, IP, TCP, UDP, Raw, hexdump
+    from scapy.layers.http import HTTP
+    import six
+    import numpy as np
+    from dateutil import parser
+    import pytz
     
+    # Now you can safely call your main function.
     main_menu()
